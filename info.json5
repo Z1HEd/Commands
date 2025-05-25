@@ -1,7 +1,7 @@
 {
-  id: "tr1ngledev.4dmod-example",
-  name: "4DMod Example",
-  author: "Tr1NgleDev",
+  id: "zihed.commands",
+  name: "Commands",
+  author: "ZiHEd",
   description: "An example mod",
   version: "1.0",
   gameVersion: "0.2.1.4",
@@ -9,6 +9,5 @@
   externalDLLs: [
   ],
   dependencies: {
-    // "tr1ngledev.4dkeybinds": "? before > 1.0" // "?" is an optional dependency, "before" makes the dependency load before this mod, "> 1.0" dependency with version bigger than 1.0
   },
 }
