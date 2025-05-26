@@ -2,23 +2,24 @@
 ## Commands mod v1.0
 - ✅Create empty mod
 - ✅Add command catcher
-- ✅Add /tp
+- Add /tp
 - Add /spawn
 - Add /give
 - ✅Add /fill
 - Add /time set, /time add, /time setspeed
 - ✅Add entity parameter options: by nickname for players,  @a for all entities (including players),@e for all non-player entities, @s for self, @p for all player entities
-- Change target selectors to match minecraft's
 - ✅Add /kill
 - Add /help for a list of commands
 - Add /settings list, /settings set
 - Add /clear to clear player inventory
 - ✅Add /clone to copy area of blocks from one are to other
+- ✅Add /rotate
+- Add /mirror
 - Add /damage to damage entities
-- Add /difficulty
+- ✅Add /difficulty
 - Add /save to save a world
 - Add /say to say something in chat
-- Add /seed to display world seed
+- ✅Add /seed to display world seed
 
 - Add error handling to all commands
 
