@@ -62,7 +62,7 @@ namespace utils {
 		return entity->getName();
 	}
 	
-	inline static void setEntityPosition(Entity* entity, glm::vec4 position) {
+	inline static void setEntityPosition(Entity* entity, glm::vec4 position, World * world) {
 		if (entity->getName() == "Player") {
 			((EntityPlayer*)entity)->player->touchingGround = false;
 			((EntityPlayer*)entity)->player->pos = position;
@@ -131,5 +131,26 @@ namespace utils {
 		((EntityItem*)spawnedEntity.get())->combineWithNearby(world);
 		Chunk* chunk = world->getChunkFromCoords(position.x, position.z, position.w);
 		if (chunk) world->addEntityToChunk(spawnedEntity, chunk);
+	}
+
+	// Parsing
+	inline static int parseInt(const std::string& s) {
+		char* end = nullptr;
+		errno = 0;
+		long val = std::strtol(s.c_str(), &end, 10);
+		if (end == s.c_str() || *end != '\0' || errno == ERANGE) {
+			throw ParsingException(s, "int");
+		}
+		return static_cast<int>(val);
+	}
+
+	inline static float parseFloat(const std::string& s) {
+		char* end = nullptr;
+		errno = 0;
+		float val = std::strtof(s.c_str(), &end);
+		if (end == s.c_str() || *end != '\0' || errno == ERANGE) {
+			throw ParsingException(s, "float");
+		}
+		return val;
 	}
 }

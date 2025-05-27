@@ -100,12 +100,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CommandHandlers.h" />
-    <ClInclude Include="Exceptions\CommandException.h" />
-    <ClInclude Include="Exceptions\ConstraintException.h" />
-    <ClInclude Include="Exceptions\EntityNotFoundException.h" />
     <ClInclude Include="Exceptions\CommandExceptions.h" />
-    <ClInclude Include="Exceptions\UnknownEntityException.h" />
-    <ClInclude Include="Exceptions\UnknownItemException.h" />
     <ClInclude Include="utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
