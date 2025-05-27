@@ -7,6 +7,8 @@ initDLL
 
 using commandHandler = std::string(*)(std::stringstream&, Player*,World*);
 
+std::vector<std::string> previousCommands{};
+int currentCommandIndex=-1;
 std::unordered_map<std::string, commandHandler> commandHandlers = {
 	{"tp",tpHandle},
 	{ "kill",killHandle },
@@ -22,14 +24,48 @@ std::unordered_map<std::string, commandHandler> commandHandlers = {
 
 // Open chat when pressing /
 $hook(void,StateGame, keyInput,StateManager& s, int key, int scancode, int action, int mods) {
-	if (key != GLFW_KEY_SLASH || action !=GLFW_PRESS || self->chatOpen || self->player.inventoryManager.isOpen())
+
+
+	if (action != GLFW_PRESS || self->player.inventoryManager.isOpen())
 		return original(self,s,key,scancode,action,mods);
 
-	self->chatOpen = true;
-	self->resetMouse(s.window);
-	self->ui.selectElement(&self->chatInput);
-	self->chatInput.text = "/";
-	self->chatInput.cursorPos = 1;
+	if (key == GLFW_KEY_SLASH && !self->chatOpen) {
+		currentCommandIndex = -1;
+		self->chatOpen = true;
+		self->resetMouse(s.window);
+		self->ui.selectElement(&self->chatInput);
+		self->chatInput.text = "/";
+		self->chatInput.cursorPos = 1;
+	}
+	else if (key == GLFW_KEY_UP && self->chatOpen) {
+		if (!previousCommands.size()) return;
+		currentCommandIndex = std::min(++currentCommandIndex, (int)previousCommands.size() - 1);
+		self->chatInput.text = previousCommands[previousCommands.size()-1 - currentCommandIndex];
+		self->chatInput.cursorPos = self->chatInput.text.size() - 1;
+	}
+	else if (key == GLFW_KEY_DOWN && self->chatOpen) {
+		if (!previousCommands.size()) return;
+		currentCommandIndex = std::max(--currentCommandIndex, 0);
+		self->chatInput.text = previousCommands[previousCommands.size() - 1 - currentCommandIndex];
+		self->chatInput.cursorPos = self->chatInput.text.size() - 1;
+	}
+	else if (key == GLFW_KEY_ENTER && self->chatOpen) {
+		currentCommandIndex = -1;
+		if (self->chatInput.text[0] == '/') {
+			auto index = std::find(previousCommands.begin(), previousCommands.end(), self->chatInput.text);
+			if (index== previousCommands.end())
+				previousCommands.push_back(self->chatInput.text);
+			else {
+				std::string command = *index;
+				previousCommands.erase(index);
+				previousCommands.push_back(command);
+			}
+				
+		}
+		return original(self, s, key, scancode, action, mods);
+	}
+
+	return original(self, s, key, scancode, action, mods);
 }
 
 // Catch commands client-side
