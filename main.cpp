@@ -95,7 +95,7 @@ std::string aliasHandle(const std::unordered_set<std::string>& modifiers,const s
 	if (modifiers.contains("remove")) {
 		assertArgumentCount(parameters, { 1 });
 
-		std::string key = parameters[0];
+		std::string key = parseText(parameters[0]);
 		if (!aliasMap.contains(key))
 			throw AliasException(std::format("Tried removing unknown alias: {}", key));
 		
@@ -110,11 +110,11 @@ std::string aliasHandle(const std::unordered_set<std::string>& modifiers,const s
 			result += std::format("\n'{}' => '{}'", key, val);
 		return result;
 	}
-	std::string key(parameters[0]);
+	std::string key = parseText(parameters[0]);
 	if (parameters.size() == 1) {
 		return std::format("Alias '{}' => {}", key, aliasMap[key]);
 	}
-	std::string value(parameters[1]);
+	std::string value = parameters[1];
 	for (int i = 2;i < parameters.size();i++)
 		value += " " + parameters[i];
 	addAlias(key, value);
@@ -205,36 +205,57 @@ void tokenize(
 	std::unordered_set<std::string>& modifiers,
 	std::vector<std::string>& parameters
 ) {
+	// Read command name
 	commandStream >> command;
-	command.erase(0, 1);  // remove leading '/'
+	if (!command.empty() && command.front() == '/') {
+		command.erase(0, 1);
+	}
 
-	bool receivedParameter = false;
-	std::string temp;
-	while (commandStream >> temp) {
-		// handle quoted tokens
-		if (temp.size() > 0 && temp.front() == '"') {
-			std::string combined = temp.substr(1);
-			while (combined.empty() || combined.back() != '"') {
+	std::string rawToken;
+
+	// Read modifiers
+	while (commandStream >> rawToken) {
+		if (rawToken.empty() || rawToken.front() != '-')
+			break;
+
+		if (rawToken.find('"') != std::string::npos) {
+			throw CommandSyntaxException(rawToken, "no quotes are allowed in modifiers");
+		}
+		modifiers.insert(rawToken.substr(1));
+	}
+
+	// Read parameters
+	do {
+		if (rawToken.empty())
+			return;
+
+		// If it starts with a quote, accumulate until the closing quote
+		if (rawToken.front() == '"') {
+			while (rawToken.back() != '"') {
 				std::string next;
 				if (!(commandStream >> next)) {
-					throw ParsingException(combined, "quoted string");
+					throw CommandSyntaxException(rawToken, "unterminated quote");
 				}
-				combined += " " + next;
+				rawToken += " " + next;
 			}
-			combined.pop_back(); // remove trailing '"'
-			temp = std::move(combined);
 		}
 
-		if (!receivedParameter && temp.size() > 0 && temp[0] == '-') {
-			// a modifier
-			modifiers.insert(temp.substr(1));
+		// Single search for invalid interior or unbalanced quotes
+		size_t pos = rawToken.find('"', 1);
+		if (pos != std::string::npos && (rawToken.front() != '"' || pos != rawToken.size() - 1)) {
+			throw CommandSyntaxException(rawToken, "invalid quote position");
 		}
-		else {
-			receivedParameter = true;
-			parameters.push_back(temp);
+
+		// Disallow modifiers after parameters
+		if (rawToken.front() == '-') {
+			throw CommandSyntaxException(rawToken, "modifier after parameter");
 		}
-	}
+
+		parameters.push_back(rawToken);
+
+	} while (commandStream >> rawToken);
 }
+
 
 // Catch commands client-side
 $hook(void, StateGame, addChatMessage, Player* player, const stl::string& message, uint32_t color)

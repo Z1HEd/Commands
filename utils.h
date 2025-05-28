@@ -250,10 +250,10 @@ namespace utils {
 		for (int i = 0; i < 4; ++i) {
 			const std::string& s = parameters[startIndex + i];
 			if (s == "~") {
-				pos[i] = player->pos[i];
+				pos[i] = player->currentBlock[i];
 			}
 			else if (s == "^") {
-				pos[i] = player->reachEndpoint[i];
+				pos[i] =player->targetingBlock ?  player->targetBlock[i] : player->reachEndpoint[i];
 			}
 			else {
 				pos[i] = parseFloat(s);
@@ -262,8 +262,43 @@ namespace utils {
 		return pos;
 	}
 
-	inline static std::string parseName(std::string s) {
-		std::replace(s.begin(), s.end(), '_', ' ');
+	inline static std::pair<glm::ivec4, glm::ivec4> parseArea(const std::vector<std::string>& parameters, std::size_t firstIndex, Player* player) {
+		glm::ivec4 posA = parsePosition(parameters, firstIndex, player);
+		glm::ivec4 posB = parsePosition(parameters, firstIndex+4, player);
+
+		glm::ivec4 startPos, endPos;
+		for (int i = 0; i < 4; ++i) {
+			if (posA[i] <= posB[i]) {
+				startPos[i] = posA[i];
+				endPos[i] = posB[i];
+			}
+			else {
+				startPos[i] = posB[i];
+				endPos[i] = posA[i];
+			}
+		}
+		return { startPos, endPos };
+	}
+
+	inline static std::string parseText(const std::string& s) {
+
+		if (s.empty()) throw ParsingException(s, "text");
+
+		if (s.front() == '"') {
+			if (s.size() < 2 || s.back() != '"') {
+				throw ParsingException(s, "text");
+			}
+			std::string interior = s.substr(1, s.size() - 2);
+			if (interior.find('"') != std::string::npos) {
+				throw ParsingException(s, "text");
+			}
+			return interior;
+		}
+
+		if (s.find('"') != std::string::npos) {
+			throw ParsingException(s, "text");
+		}
 		return s;
-	};
+	}
+
 }

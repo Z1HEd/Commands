@@ -70,6 +70,7 @@ std::string tpHandle(
 			position.x, position.y, position.z, position.w);
 	}
 	}
+	return "this will never happen, compiler shut up";
 }
 
 std::string killHandle(
@@ -108,8 +109,7 @@ std::string fillHandle(
 	constexpr int maxFillSize = 32 * 32 * 32 * 32;
 	assertArgumentCount(parameters, { 9 });
 
-	glm::ivec4 startPosition = parsePosition(parameters, 0, player);
-	glm::ivec4 endPosition = parsePosition(parameters, 4, player);
+	auto [startPosition, endPosition] = parseArea(parameters, 0, player);
 	int blockType = parseInt(parameters[8]);
 
 	int sizeX = endPosition.x - startPosition.x + 1;
@@ -157,8 +157,7 @@ std::string cloneHandle(
 	constexpr int maxAreaSize = 32 * 32 * 32 * 32;
 	assertArgumentCount(parameters, { 12 });
 
-	glm::ivec4 fromStart = parsePosition(parameters, 0, player);
-	glm::ivec4 fromEnd = parsePosition(parameters, 4, player);
+	auto [fromStart, fromEnd] = parseArea(parameters, 0, player);
 	glm::ivec4 toStart = parsePosition(parameters, 8, player);
 
 	int sizeX = fromEnd.x - fromStart.x + 1;
@@ -289,7 +288,7 @@ std::string giveHandle(
 
 	// /give <item>
 	if (parameters.size() == 1) {
-		std::string itemName = parseName(parameters[0]);
+		std::string itemName = parseText(parameters[0]);
 		spawnEntityItem(itemName, 1, player->pos, world);
 		return std::format("Given item: {} x1", itemName);
 	}
@@ -299,14 +298,14 @@ std::string giveHandle(
 		// /give <item> <count>
 		try {
 			int count = parseInt(parameters[1]);
-			std::string itemName = parseName(parameters[0]);
+			std::string itemName = parseText(parameters[0]);
 			spawnEntityItem(itemName, count, player->pos, world);
 			return std::format("Given item: {} x{}", itemName, count);
 		}
 		catch (const ParsingException&) {
 			// /give <entity> <item>
 			std::string entityString = parameters[0];
-			std::string itemName = parseName(parameters[1]);
+			std::string itemName = parseText(parameters[1]);
 			auto entities = getEntities(entityString, player, world);
 			if (entities.empty()) {
 				throw EntityNotFoundException(entityString);
@@ -321,7 +320,7 @@ std::string giveHandle(
 	// /give <entity> <item> <count>
 	{
 		std::string entityString = parameters[0];
-		std::string itemName = parseName(parameters[1]);
+		std::string itemName = parseText(parameters[1]);
 		int count = parseInt(parameters[2]);
 
 		auto entities = getEntities(entityString, player, world);
@@ -348,7 +347,7 @@ std::string rotateHandle(
 ) {
 	assertArgumentCount(parameters, { 9 });
 
-	const std::string& modeRaw = parameters[0];
+	const std::string& modeRaw = parseText(parameters[0]);
 
 	// strip and uppercase base mode
 	std::string m = modeRaw;
@@ -368,19 +367,7 @@ std::string rotateHandle(
 			"Unknown rotate plane: '{}'.", modeRaw));
 	}
 
-	// parse coordinates
-	glm::ivec4 start{
-		parseInt(parameters[1]),
-		parseInt(parameters[2]),
-		parseInt(parameters[3]),
-		parseInt(parameters[4])
-	};
-	glm::ivec4 end{
-		parseInt(parameters[5]),
-		parseInt(parameters[6]),
-		parseInt(parameters[7]),
-		parseInt(parameters[8])
-	};
+	auto [start, end] = parseArea(parameters, 0, player);
 
 	// if safe mode, enforce square area in that plane
 	if (!modifiers.count("unsafe")) {
