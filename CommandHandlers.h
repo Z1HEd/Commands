@@ -16,6 +16,8 @@ std::string tpHandle(
 	glm::vec4 position{};
 	std::vector<Entity*> targets;
 
+	assertArgumentCount(parameters, { 1,2,4,5 });
+
 	switch (parameters.size()) {
 	case 1: {
 		// /tp <target>
@@ -23,10 +25,10 @@ std::string tpHandle(
 		if (targets.empty())
 			throw EntityNotFoundException(parameters[0]);
 		if (targets.size() > 1)
-			throw MultipleEntitiesException("First parameter",targets.size());
+			throw MultipleEntitiesException("First parameter", targets.size());
 		position = targets[0]->getPos();
 		position += glm::vec4(0.001f);
-		setEntityPosition(world->getEntity(player->EntityPlayerID), position,world);
+		setEntityPosition(world->getEntity(player->EntityPlayerID), position, world);
 		return std::format("Teleported you to {}", getEntityName(targets[0]));
 	}
 	case 2: {
@@ -38,7 +40,7 @@ std::string tpHandle(
 		if (dest.empty())
 			throw EntityNotFoundException(parameters[1]);
 		if (dest.size() > 1)
-			throw MultipleEntitiesException("Second parameter",dest.size());
+			throw MultipleEntitiesException("Second parameter", dest.size());
 		position = dest[0]->getPos();
 		position += glm::vec4(0.001f);
 		for (auto* e : targets)
@@ -48,10 +50,7 @@ std::string tpHandle(
 	}
 	case 4: {
 		// /tp <x> <y> <z> <w>
-		position.x = parseFloat(parameters[0]);
-		position.y = parseFloat(parameters[1]);
-		position.z = parseFloat(parameters[2]);
-		position.w = parseFloat(parameters[3]);
+		position = parsePosition(parameters, 0, player);
 		position += glm::vec4(0.001f);
 		setEntityPosition(world->getEntity(player->EntityPlayerID), position, world);
 		return std::format("Teleported you to {:.1f},{:.1f},{:.1f},{:.1f}",
@@ -62,10 +61,7 @@ std::string tpHandle(
 		targets = getEntities(parameters[0], player, world);
 		if (targets.empty())
 			throw EntityNotFoundException(parameters[0]);
-		position.x = parseFloat(parameters[1]);
-		position.y = parseFloat(parameters[2]);
-		position.z = parseFloat(parameters[3]);
-		position.w = parseFloat(parameters[4]);
+		position = parsePosition(parameters, 1, player);
 		position += glm::vec4(0.001f);
 		for (auto* e : targets)
 			setEntityPosition(e, position, world);
@@ -73,8 +69,6 @@ std::string tpHandle(
 			targets.size(),
 			position.x, position.y, position.z, position.w);
 	}
-	default:
-		throw ArgumentCountException(parameters.size(), {1,2,4,5});
 	}
 }
 
@@ -84,9 +78,7 @@ std::string killHandle(
 	Player* player,
 	World* world
 ) {
-	if (parameters.size() != 1) {
-		throw ArgumentCountException(parameters.size(), { 1 });
-	}
+	assertArgumentCount(parameters, { 1 });
 
 	const std::string& entityString = parameters[0];
 	auto entities = getEntities(entityString, player, world);
@@ -114,22 +106,10 @@ std::string fillHandle(
 	World* world
 ) {
 	constexpr int maxFillSize = 32 * 32 * 32 * 32;
-	if (parameters.size() != 9) {
-		throw ArgumentCountException(parameters.size(), { 9 });
-	}
+	assertArgumentCount(parameters, { 9 });
 
-	glm::ivec4 startPosition{
-		parseInt(parameters[0]),
-		parseInt(parameters[1]),
-		parseInt(parameters[2]),
-		parseInt(parameters[3])
-	};
-	glm::ivec4 endPosition{
-		parseInt(parameters[4]),
-		parseInt(parameters[5]),
-		parseInt(parameters[6]),
-		parseInt(parameters[7])
-	};
+	glm::ivec4 startPosition = parsePosition(parameters, 0, player);
+	glm::ivec4 endPosition = parsePosition(parameters, 4, player);
 	int blockType = parseInt(parameters[8]);
 
 	int sizeX = endPosition.x - startPosition.x + 1;
@@ -175,28 +155,11 @@ std::string cloneHandle(
 	World* world
 ) {
 	constexpr int maxAreaSize = 32 * 32 * 32 * 32;
-	if (parameters.size() != 12) {
-		throw ArgumentCountException(parameters.size(), { 12 });
-	}
+	assertArgumentCount(parameters, { 12 });
 
-	glm::ivec4 fromStart{
-		parseInt(parameters[0]),
-		parseInt(parameters[1]),
-		parseInt(parameters[2]),
-		parseInt(parameters[3])
-	};
-	glm::ivec4 fromEnd{
-		parseInt(parameters[4]),
-		parseInt(parameters[5]),
-		parseInt(parameters[6]),
-		parseInt(parameters[7])
-	};
-	glm::ivec4 toStart{
-		parseInt(parameters[8]),
-		parseInt(parameters[9]),
-		parseInt(parameters[10]),
-		parseInt(parameters[11])
-	};
+	glm::ivec4 fromStart = parsePosition(parameters, 0, player);
+	glm::ivec4 fromEnd = parsePosition(parameters, 4, player);
+	glm::ivec4 toStart = parsePosition(parameters, 8, player);
 
 	int sizeX = fromEnd.x - fromStart.x + 1;
 	int sizeY = fromEnd.y - fromStart.y + 1;
@@ -257,13 +220,13 @@ std::string seedHandle(
 	Player* player,
 	World* world
 ) {
-	if (parameters.size() != 0) {
-		throw ArgumentCountException(parameters.size(), { 0 });
-	}
+	assertArgumentCount(parameters, { 0 });
+
 	if (world->getType() == World::TYPE_SINGLEPLAYER) {
 		auto* sp = static_cast<WorldSingleplayer*>(world);
 		return std::format("Seed: {}", sp->chunkLoader.seed);
 	}
+
 	auto* sp = static_cast<WorldServer*>(world);
 	return std::format("Seed: {}", sp->chunkLoader.seed);
 }
@@ -274,17 +237,10 @@ std::string spawnHandle(
 	Player* player,
 	World* world
 ) {
-	if (parameters.size() != 5) {
-		throw ArgumentCountException(parameters.size(), { 5 });
-	}
+	assertArgumentCount(parameters, { 5 });
 
 	const std::string& entityName = parameters[0];
-	glm::vec4 position{
-		parseFloat(parameters[1]),
-		parseFloat(parameters[2]),
-		parseFloat(parameters[3]),
-		parseFloat(parameters[4])
-	};
+	glm::vec4 position = parsePosition(parameters, 1, player);
 
 	spawnEntity(entityName, position);
 
@@ -297,11 +253,8 @@ std::string difficultyHandle(
 	Player* player,
 	World* world
 ) {
-	if (parameters.size() > 1) {
-		throw ArgumentCountException(parameters.size(), { 0, 1 });
-	}
+	assertArgumentCount(parameters, { 0, 1 });
 
-	// No parameters: report current difficulty
 	if (parameters.empty()) {
 		int current = world->getType() == World::TYPE_SINGLEPLAYER ?
 			((WorldSingleplayer*)world)->chunkLoader.difficulty :
@@ -309,7 +262,6 @@ std::string difficultyHandle(
 		return std::format("Current difficulty: {}", current);
 	}
 
-	// One parameter: parse and validate
 	int difficulty = parseInt(parameters[0]);
 	if (difficulty < 0 || difficulty > 2) {
 		throw ConstraintException(
@@ -333,18 +285,11 @@ std::string giveHandle(
 	Player* player,
 	World* world
 ) {
-	if (parameters.size() < 1 || parameters.size() > 3) {
-		throw ArgumentCountException(parameters.size(), { 1, 2, 3 });
-	}
-
-	auto replaceUnderscores = [&](std::string s) {
-		std::replace(s.begin(), s.end(), '_', ' ');
-		return s;
-		};
+	assertArgumentCount(parameters, { 1,2,3 });
 
 	// /give <item>
 	if (parameters.size() == 1) {
-		std::string itemName = replaceUnderscores(parameters[0]);
+		std::string itemName = parseName(parameters[0]);
 		spawnEntityItem(itemName, 1, player->pos, world);
 		return std::format("Given item: {} x1", itemName);
 	}
@@ -354,14 +299,14 @@ std::string giveHandle(
 		// /give <item> <count>
 		try {
 			int count = parseInt(parameters[1]);
-			std::string itemName = replaceUnderscores(parameters[0]);
+			std::string itemName = parseName(parameters[0]);
 			spawnEntityItem(itemName, count, player->pos, world);
 			return std::format("Given item: {} x{}", itemName, count);
 		}
 		catch (const ParsingException&) {
 			// /give <entity> <item>
 			std::string entityString = parameters[0];
-			std::string itemName = replaceUnderscores(parameters[1]);
+			std::string itemName = parseName(parameters[1]);
 			auto entities = getEntities(entityString, player, world);
 			if (entities.empty()) {
 				throw EntityNotFoundException(entityString);
@@ -376,7 +321,7 @@ std::string giveHandle(
 	// /give <entity> <item> <count>
 	{
 		std::string entityString = parameters[0];
-		std::string itemName = replaceUnderscores(parameters[1]);
+		std::string itemName = parseName(parameters[1]);
 		int count = parseInt(parameters[2]);
 
 		auto entities = getEntities(entityString, player, world);
@@ -395,101 +340,13 @@ std::string giveHandle(
 	}
 }
 
-static std::size_t rotateArea(
-	const std::string& mode,
-	const glm::ivec4& start,
-	const glm::ivec4& end,
-	World* world
-) {
-	// compute center
-	glm::vec4 center = (glm::vec4(start) + glm::vec4(end)) * 0.5f;
-
-	// harvest blocks & chests
-	struct BlockRec { glm::ivec4 pos; uint8_t id; };
-	std::vector<BlockRec> blocks;
-	blocks.reserve(
-		(end.x - start.x + 1) *
-		(end.y - start.y + 1) *
-		(end.z - start.z + 1) *
-		(end.w - start.w + 1)
-	);
-	struct ChestRec { EntityChest* ent; glm::ivec4 pos; };
-	std::vector<ChestRec> chests;
-	for (int x = start.x; x <= end.x; ++x)
-		for (int y = start.y; y <= end.y; ++y)
-			for (int z = start.z; z <= end.z; ++z)
-				for (int w = start.w; w <= end.w; ++w) {
-					glm::ivec4 p{ x,y,z,w };
-					uint8_t id = world->getBlock(p);
-					blocks.push_back({ p,id });
-					if (id == BlockInfo::CHEST) {
-						if (auto* e = (EntityChest*)world->entities.getBlockEntity(p))
-							chests.push_back({ e,p });
-					}
-				}
-
-	// clear original region
-	for (auto& br : blocks)
-		world->setBlockUpdate(br.pos, BlockInfo::AIR);
-
-	// find axes to rotate
-	auto axisIndex = [&](char C) {
-		return C == 'X' ? 0 : C == 'Y' ? 1 : C == 'Z' ? 2 : 3;
-		};
-	bool is180 = false, reverse = false;
-	// parse "180" and reverse from mode string
-	std::string m = mode;
-	if (m.size() > 2 && m.substr(m.size() - 3) == "180") {
-		is180 = true;
-		m.erase(m.size() - 3);
-	}
-	char A = char(std::toupper(m[0])), B = char(std::toupper(m[1]));
-	static const char* canon[] = { "XY","XZ","XW","YZ","YW","ZW" };
-	if (std::find(std::begin(canon), std::end(canon), m) == std::end(canon)) {
-		std::swap(A, B);
-		reverse = true;
-	}
-	int ia = axisIndex(A), ib = axisIndex(B);
-
-	// rotate and write back
-	auto rotatePt = [&](const glm::ivec4& ipos) {
-		glm::vec4 f = glm::vec4(ipos) - center;
-		float a = f[ia], b = f[ib], na, nb;
-		if (is180) { na = -a;       nb = -b; }
-		else if (!reverse) { na = -b;       nb = a; } // CCW
-		else /* reverse */ { na = b;       nb = -a; } // CW
-		f[ia] = na; f[ib] = nb;
-		glm::vec4 fr = f + center;
-		return glm::ivec4{
-			glm::round(fr.x),
-			glm::round(fr.y),
-			glm::round(fr.z),
-			glm::round(fr.w)
-		};
-		};
-
-	for (auto& br : blocks) {
-		glm::ivec4 np = rotatePt(br.pos);
-		world->setBlockUpdate(np, br.id);
-	}
-	for (auto& cr : chests) {
-		glm::ivec4 np = rotatePt(cr.pos);
-		cr.ent->setPos(np);
-	}
-	world->entities.relocateBlockEntities();
-	return blocks.size();
-}
-
 std::string rotateHandle(
 	const std::unordered_set<std::string>& modifiers,
 	const std::vector<std::string>& parameters,
 	Player* player,
 	World* world
 ) {
-	// expect 9 parameters: mode + 8 coords
-	if (parameters.size() != 9) {
-		throw ArgumentCountException(parameters.size(), { 9 });
-	}
+	assertArgumentCount(parameters, { 9 });
 
 	const std::string& modeRaw = parameters[0];
 
