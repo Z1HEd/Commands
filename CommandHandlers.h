@@ -21,11 +21,7 @@ std::string tpHandle(
 	switch (parameters.size()) {
 	case 1: {
 		// /tp <target>
-		targets = getEntities(parameters[0], player, world);
-		if (targets.empty())
-			throw EntityNotFoundException(parameters[0]);
-		if (targets.size() > 1)
-			throw MultipleEntitiesException("First parameter", targets.size());
+		targets.push_back( parseEntity(parameters[0], player, world));
 		position = targets[0]->getPos();
 		position += glm::vec4(0.001f);
 		setEntityPosition(world->getEntity(player->EntityPlayerID), position, world);
@@ -33,20 +29,14 @@ std::string tpHandle(
 	}
 	case 2: {
 		// /tp <entity-list> <destination-entity>
-		targets = getEntities(parameters[0], player, world);
-		if (targets.empty())
-			throw EntityNotFoundException(parameters[0]);
-		std::vector<Entity*> dest = getEntities(parameters[1], player, world);
-		if (dest.empty())
-			throw EntityNotFoundException(parameters[1]);
-		if (dest.size() > 1)
-			throw MultipleEntitiesException("Second parameter", dest.size());
-		position = dest[0]->getPos();
+		targets = parseEntityList(parameters[0], player, world);
+		Entity* dest = parseEntity(parameters[1], player, world);
+		position = dest->getPos();
 		position += glm::vec4(0.001f);
 		for (auto* e : targets)
 			setEntityPosition(e, position, world);
 		return std::format("Teleported {} entities to {}",
-			targets.size(), getEntityName(dest[0]));
+			targets.size(), getEntityName(dest));
 	}
 	case 4: {
 		// /tp <x> <y> <z> <w>
@@ -58,9 +48,7 @@ std::string tpHandle(
 	}
 	case 5: {
 		// /tp <entity-list> <x> <y> <z> <w>
-		targets = getEntities(parameters[0], player, world);
-		if (targets.empty())
-			throw EntityNotFoundException(parameters[0]);
+		targets = parseEntityList(parameters[0], player, world);
 		position = parsePosition(parameters, 1, player);
 		position += glm::vec4(0.001f);
 		for (auto* e : targets)
@@ -82,11 +70,7 @@ std::string killHandle(
 	assertArgumentCount(parameters, { 1 });
 
 	const std::string& entityString = parameters[0];
-	auto entities = getEntities(entityString, player, world);
-
-	if (entities.empty()) {
-		throw EntityNotFoundException(entityString);
-	}
+	auto entities = parseEntityList(entityString, player, world);
 
 	for (auto* e : entities) {
 		killEntity(e, world);
@@ -306,10 +290,8 @@ std::string giveHandle(
 			// /give <entity> <item>
 			std::string entityString = parameters[0];
 			std::string itemName = parseText(parameters[1]);
-			auto entities = getEntities(entityString, player, world);
-			if (entities.empty()) {
-				throw EntityNotFoundException(entityString);
-			}
+			auto entities = parseEntityList(entityString, player, world);
+
 			for (auto* e : entities) {
 				spawnEntityItem(itemName, 1, e->getPos(), world);
 			}
@@ -323,10 +305,8 @@ std::string giveHandle(
 		std::string itemName = parseText(parameters[1]);
 		int count = parseInt(parameters[2]);
 
-		auto entities = getEntities(entityString, player, world);
-		if (entities.empty()) {
-			throw EntityNotFoundException(entityString);
-		}
+		auto entities = parseEntityList(entityString, player, world);
+
 		for (auto* e : entities) {
 			spawnEntityItem(itemName, count, e->getPos(), world);
 		}

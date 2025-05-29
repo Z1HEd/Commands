@@ -6,54 +6,6 @@ using namespace fdm;
 using namespace commandExceptions;
 
 namespace utils {
-	inline static std::vector<Entity*> getEntities(std::string entityString, Player* self, World* world) {
-		std::vector<Entity*> result = {};
-		world->entitiesMutex.lock();
-		if (entityString == "@s") {
-			result.push_back(world->entities.entities.at(self->EntityPlayerID).get());
-		}
-		else if (entityString == "@a") {
-			for (const auto& pair : world->entities.entities) {
-				if (pair.second.get()->isBlockEntity()) continue;
-				result.push_back(pair.second.get());
-			}
-		}
-		else if (entityString == "@p") {
-			for (const auto& pair : world->entities.entities) {
-				Entity* entity = pair.second.get();
-				if (entity->isBlockEntity()) continue;
-				if (entity->getName() == "Player")
-					result.push_back(pair.second.get());
-			}
-		}
-		else if (entityString == "@e") {
-			for (const auto& pair : world->entities.entities) {
-				Entity* entity = pair.second.get();
-				if (entity->isBlockEntity()) continue;
-				if (entity->getName() != "Player")
-					result.push_back(pair.second.get());
-			}
-		}
-		else if (entityString == "@i") {
-			for (const auto& pair : world->entities.entities) {
-				Entity* entity = pair.second.get();
-				if (entity->getName() == "Item")
-					result.push_back(pair.second.get());
-			}
-		}
-		else {
-			for (const auto& pair : world->entities.entities) {
-				Entity* entity = pair.second.get();
-				if (entity->isBlockEntity()) continue;
-				if (entity->getName() == "Player" && ((EntityPlayer*)entity)->displayName == entityString)
-					result.push_back(pair.second.get());
-			}
-		}
-		world->entitiesMutex.unlock();
-		if (result.size() == 0)
-			throw EntityNotFoundException(entityString);
-		return result;
-	}
 	
 	inline static std::string getEntityName(Entity* entity) {
 		if (entity->getName() == "Player") return ((EntityPlayer*)entity)->displayName != "" ?
@@ -285,20 +237,76 @@ namespace utils {
 		if (s.empty()) throw ParsingException(s, "text");
 
 		if (s.front() == '"') {
-			if (s.size() < 2 || s.back() != '"') {
-				throw ParsingException(s, "text");
-			}
-			std::string interior = s.substr(1, s.size() - 2);
-			if (interior.find('"') != std::string::npos) {
-				throw ParsingException(s, "text");
-			}
-			return interior;
+			return s.substr(1, s.size() - 2);;
 		}
 
-		if (s.find('"') != std::string::npos) {
-			throw ParsingException(s, "text");
-		}
 		return s;
+	}
+
+	static std::vector<Entity*> parseEntityList(const std::string& token, Player* self, World* world) {
+		std::string ref = token;
+		if (ref.size() >= 2 && ref.front() == '"' && ref.back() == '"') {
+			ref = ref.substr(1, ref.size() - 2);
+		}
+
+		std::vector<Entity*> result;
+
+		std::lock_guard<std::mutex> guard(world->entitiesMutex);
+
+		if (ref == "@s") {
+			result.push_back(world->entities.entities.at(self->EntityPlayerID).get());
+		}
+		else if (ref == "@a") {
+			for (const auto& pair : world->entities.entities) {
+				if (pair.second->isBlockEntity()) continue;
+				result.push_back(pair.second.get());
+			}
+		}
+		else if (ref == "@p") {
+			for (const auto& pair : world->entities.entities) {
+				Entity* entity = pair.second.get();
+				if (entity->isBlockEntity()) continue;
+				if (entity->getName() == "Player")
+					result.push_back(entity);
+			}
+		}
+		else if (ref == "@e") {
+			for (const auto& pair : world->entities.entities) {
+				Entity* entity = pair.second.get();
+				if (entity->isBlockEntity()) continue;
+				if (entity->getName() != "Player")
+					result.push_back(entity);
+			}
+		}
+		else if (ref == "@i") {
+			for (const auto& pair : world->entities.entities) {
+				Entity* entity = pair.second.get();
+				if (entity->getName() == "Item")
+					result.push_back(entity);
+			}
+		}
+		else {
+			for (const auto& pair : world->entities.entities) {
+				Entity* entity = pair.second.get();
+				if (entity->isBlockEntity()) continue;
+				if (entity->getName() == "Player" && ((EntityPlayer*)entity)->displayName == ref)
+					result.push_back(entity);
+			}
+		}
+
+		if (result.empty()) {
+			throw EntityNotFoundException(token);
+		}
+
+		return result;
+	}
+
+	static Entity* parseEntity(const std::string& token, Player* self, World* world) {
+		std::vector<Entity*> list = parseEntityList(token, self, world);
+		if (list.size() != 1) {
+			throw MultipleEntitiesException(token, list.size());
+		}
+		return list[0];
 	}
 
 }
