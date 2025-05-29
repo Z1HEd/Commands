@@ -1,10 +1,12 @@
 #pragma once
 #include <4dm.h>
 #include "utils.h"
-
+#include "Aliases.h"
+#include "Command.h"
 
 using namespace fdm;
 using namespace utils;
+using namespace aliases;
 using namespace commandExceptions;
 
 std::string tpHandle(
@@ -15,8 +17,6 @@ std::string tpHandle(
 ) {
 	glm::vec4 position{};
 	std::vector<Entity*> targets;
-
-	assertArgumentCount(parameters, { 1,2,4,5 });
 
 	switch (parameters.size()) {
 	case 1: {
@@ -368,4 +368,90 @@ std::string rotateHandle(
 
 	auto count = rotateArea(modeRaw, start, end, world);
 	return std::format("Rotated {} blocks ({})", count, modeRaw);
+}
+
+std::string aliasHandle(
+	const std::unordered_set<std::string>& modifiers,
+	const std::vector<std::string>& parameters,
+	Player* caller,
+	World* world
+) {
+	if (modifiers.contains("remove")) {
+		assertArgumentCount(parameters, { 1 });
+
+		std::string key = parseText(parameters[0]);
+		if (!aliasMap.contains(key))
+			throw AliasException(std::format("Tried removing unknown alias: {}", key));
+
+		aliasMap.erase(key);
+		return std::format("Alias '{}' has been removed", key);
+	}
+
+	if (parameters.empty()) {
+		std::string result = "Known aliases:";
+		for (const auto& [key, val] : aliasMap)
+			result += std::format("\n'{}' => '{}'", key, val);
+		return result;
+	}
+
+	std::string key = parseText(parameters[0]);
+
+	if (parameters.size() == 1) {
+		if (!aliasMap.contains(key))
+			throw AliasException(std::format("Alias '{}' is not defined.", key));
+		return std::format("Alias '{}' => {}", key, aliasMap[key]);
+	}
+
+	std::string value = parameters[1];
+	for (size_t i = 2; i < parameters.size(); ++i)
+		value += " " + parameters[i];
+
+	if (aliasMap.contains(key)) {
+		if (!modifiers.contains("overwrite"))
+			throw AliasException(std::format("Alias '{}' is already defined.", key));
+		aliasMap[key] = value;
+		saveAliases();
+		return std::format("Alias '{}' has been overwritten to '{}'", key, value);
+	}
+	else {
+		addAlias(key, value);
+		saveAliases();
+		return std::format("Added alias: '{}' => '{}'", key, value);
+	}
+}
+
+std::string helpHandle(
+	const std::unordered_set<std::string>& modifiers,
+	const std::vector<std::string>& parameters,
+	Player* caller,
+	World* world
+) {
+
+	if (parameters.empty()) {
+		std::ostringstream oss;
+		oss << "Available commands:\n";
+		for (const auto& [name, cmd] : commands) {
+			oss << "  /" << name << " - " << cmd.description << "\n";
+		}
+		return oss.str();
+	}
+	else {
+		const std::string& cmdName = parseText(parameters[0]);
+		if (!commands.contains(cmdName)) {
+			throw CommandException(std::format("Unknown command '{}'.", cmdName));
+		}
+		const Command& cmd = commands[cmdName];
+
+		return std::format("Usage for '{}':\n{}", cmdName, cmd.usage);
+	}
+}
+
+std::string clearHandle(
+	const std::unordered_set<std::string>& modifiers,
+	const std::vector<std::string>& parameters,
+	Player* caller,
+	World* world
+) {
+	StateGame::instanceObj.chatMessageContainer.clear();
+	return "";
 }

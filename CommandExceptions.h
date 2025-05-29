@@ -1,4 +1,6 @@
 #pragma once
+#include <4dm.h>
+
 
 namespace commandExceptions {
     class CommandException : public std::exception {
@@ -20,24 +22,36 @@ namespace commandExceptions {
     };
 
     class ArgumentCountException : public CommandException {
-        inline static std::string formatMessage(const int& receivedCount, std::vector<int> expectedCounts) {
+        inline static std::string formatMessage(
+            const int& receivedCount,
+            const std::set<int>& expectedCounts
+        ) {
             std::ostringstream oss;
-            oss << "Invalid number of arguments: received " << receivedCount << ", expected ";
-            for (int i = 0; i < expectedCounts.size(); ++i) {
-                if (i > 0) {
-                    if (i + 1 == expectedCounts.size())
+            oss << "Invalid number of arguments: received "
+                << receivedCount
+                << ", expected ";
+
+            for (auto it = expectedCounts.begin(); it != expectedCounts.end(); ++it) {
+                if (it != expectedCounts.begin()) {
+                    if (std::next(it) == expectedCounts.end()) 
                         oss << " or ";
-                    else
+                    else 
                         oss << ", ";
                 }
-                oss << expectedCounts[i];
+                oss << *it;
             }
+
             oss << ".";
             return oss.str();
         }
+
     public:
-        inline ArgumentCountException(const int& receivedCount, std::initializer_list<int> expectedCounts)
-            : CommandException(formatMessage(receivedCount, expectedCounts)) {
+        inline ArgumentCountException(
+            const int& receivedCount,
+            const std::set<int>& expectedCounts
+        )
+            : CommandException(formatMessage(receivedCount, expectedCounts))
+        {
         }
     };
     

@@ -1,12 +1,12 @@
 #pragma once
 #include <4dm.h>
-#include "Exceptions/CommandExceptions.h"
+#include "CommandExceptions.h"
 
 using namespace fdm;
 using namespace commandExceptions;
 
 namespace utils {
-	
+
 	inline static std::string getEntityName(Entity* entity) {
 		if (entity->getName() == "Player") return ((EntityPlayer*)entity)->displayName != "" ?
 			((EntityPlayer*)entity)->displayName :
@@ -171,7 +171,7 @@ namespace utils {
 		return blocks.size();
 	}
 
-	inline static void assertArgumentCount(const std::vector<std::string>& args,const std::initializer_list<int>& expected){
+	inline static void assertArgumentCount(const std::vector<std::string>& args,const std::set<int>& expected){
 		if (std::find(expected.begin(), expected.end(), args.size()) == expected.end())
 			throw ArgumentCountException(args.size(), expected);
 	}
@@ -243,7 +243,7 @@ namespace utils {
 		return s;
 	}
 
-	static std::vector<Entity*> parseEntityList(const std::string& token, Player* self, World* world) {
+	inline static std::vector<Entity*> parseEntityList(const std::string& token, Player* self, World* world) {
 		std::string ref = token;
 		if (ref.size() >= 2 && ref.front() == '"' && ref.back() == '"') {
 			ref = ref.substr(1, ref.size() - 2);
@@ -301,7 +301,7 @@ namespace utils {
 		return result;
 	}
 
-	static Entity* parseEntity(const std::string& token, Player* self, World* world) {
+	inline static Entity* parseEntity(const std::string& token, Player* self, World* world) {
 		std::vector<Entity*> list = parseEntityList(token, self, world);
 		if (list.size() != 1) {
 			throw MultipleEntitiesException(token, list.size());

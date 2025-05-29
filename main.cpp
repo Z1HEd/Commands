@@ -1,16 +1,13 @@
 #include <4dm.h>
-#include "CommandHandlers.h"
-#include <fstream>
+#include "Handlers.h"
+#include "Command.h"
+#include "Aliases.h"
+
 using namespace fdm;
+using namespace aliases;
 
 // Initialize the DLLMain
 initDLL
-
-using commandHandler = std::string(*)(
-	const std::unordered_set<std::string>&,
-	const std::vector<std::string>&,
-	Player*,
-	World*);
 
 constexpr uint32_t errorColor = 0xEA3526;
 constexpr uint32_t criticalErrorColor = 0xFF0000;
@@ -18,140 +15,8 @@ constexpr uint32_t criticalErrorColor = 0xFF0000;
 std::vector<std::string> previousCommands{};
 int currentCommandIndex=-1;
 
-// Global alias storage
-static std::unordered_map<std::string, std::string> aliasMap;
-
-void addAlias(const std::string& key, const std::string& expansion) {
-	if (aliasMap.contains(key))
-		throw AliasException(std::format("Alias '{}' is already defined.", key));
-
-	for (auto const& [existingAlias, existingExpansion] : aliasMap) {
-		if (expansion.find(existingAlias) != std::string::npos) {
-			throw AliasException(std::format(
-				"Expansion for '{}' contains existing alias '{}', which would be ambiguous.",
-				key, existingAlias
-			));
-		}
-	}
-	for (auto const& [existingAlias, existingExpansion] : aliasMap) {
-		if (existingExpansion.find(key) != std::string::npos) {
-			throw AliasException(std::format(
-				"Existing alias '{}' expands to a string containing '{}', which would be ambiguous.",
-				existingAlias, key
-			));
-		}
-	}
-
-	aliasMap.emplace(key, expansion);
-}
-
-void saveAliases() {
-	std::string configPath = std::format(
-		"{}/aliases.json",
-		fdm::getModPath(fdm::modID)
-	);
-
-	nlohmann::json j;
-	for (auto const& [key, value] : aliasMap) {
-		j[key] = value;
-	}
-
-	// write out nicely formatted JSON
-	std::ofstream ofs(configPath);
-	if (!ofs) {
-		throw std::runtime_error("Failed to open " + configPath + " for writing");
-	}
-	ofs << j.dump(4) << "\n";
-	ofs.close();
-}
-
-void loadAliases() {
-	std::string configPath = std::format(
-		"{}/aliases.json",
-		fdm::getModPath(fdm::modID)
-	);
-
-	std::ifstream ifs(configPath);
-	if (!ifs) {
-		return;
-	}
-
-	nlohmann::json j;
-	try {
-		ifs >> j;
-	}
-	catch (const std::exception& e) {
-		throw std::runtime_error("Failed to parse aliases.json: " + std::string(e.what()));
-	}
-
-	aliasMap.clear();
-	for (auto it = j.begin(); it != j.end(); ++it) 
-		aliasMap[it.key()] = it.value().get<std::string>();
-	
-}
-
-std::string aliasHandle(const std::unordered_set<std::string>& modifiers,const std::vector<std::string>& parameters, Player* caller, World* world) {
-
-	if (modifiers.contains("remove")) {
-		assertArgumentCount(parameters, { 1 });
-
-		std::string key = parseText(parameters[0]);
-		if (!aliasMap.contains(key))
-			throw AliasException(std::format("Tried removing unknown alias: {}", key));
-		
-		aliasMap.erase(key);
-
-		return std::format("Alias '{}' has been removed", key);
-	}
-
-	if (parameters.size()==0) {
-		std::string result = "Known aliases: ";
-		for (const auto& [key, val] : aliasMap)
-			result += std::format("\n'{}' => '{}'", key, val);
-		return result;
-	}
-	std::string key = parseText(parameters[0]);
-	if (parameters.size() == 1) {
-		return std::format("Alias '{}' => {}", key, aliasMap[key]);
-	}
-	std::string value = parameters[1];
-	for (int i = 2;i < parameters.size();i++)
-		value += " " + parameters[i];
-	addAlias(key, value);
-	saveAliases();
-	return std::format("Added alias: '{}' => '{}'", key, aliasMap[key]);
-}
-
-// Apply all aliases (whole-word matches) to the message
-void applyAliases(std::string& msg) {
-	for (auto& [key, val] : aliasMap) {
-		size_t pos = 0;
-		while ((pos = msg.find(key, pos)) != std::string::npos) {
-			bool leftOk = (pos == 0 || msg[pos - 1] == ' ');
-			bool rightOk = (pos + key.size() == msg.size() || msg[pos + key.size()] == ' ');
-			if (leftOk && rightOk) {
-				msg.replace(pos, key.size(), val);
-				pos += val.size();
-			}
-			else {
-				pos += key.size();
-			}
-		}
-	}
-}
-
-static const std::unordered_map<std::string, commandHandler> commandHandlers = {
-	{ "tp",        tpHandle },
-	{ "kill",      killHandle },
-	{ "fill",      fillHandle },
-	{ "clone",     cloneHandle },
-	{ "seed",      seedHandle },
-	{ "spawn",     spawnHandle },
-	{ "difficulty",difficultyHandle },
-	{ "give",      giveHandle },
-	{ "rotate",    rotateHandle },
-	{ "alias",     aliasHandle }
-};
+std::unordered_map<std::string, std::string> aliasMap{};
+std::unordered_map<std::string, Command> commands{};
 
 // Open chat when pressing /
 $hook(void,StateGame, keyInput,StateManager& s, int key, int scancode, int action, int mods) {
@@ -207,9 +72,8 @@ void tokenize(
 ) {
 	// Read command name
 	commandStream >> command;
-	if (!command.empty() && command.front() == '/') {
-		command.erase(0, 1);
-	}
+	command = command.substr(1);
+
 
 	std::string rawToken;
 
@@ -256,6 +120,120 @@ void tokenize(
 	} while (commandStream >> rawToken);
 }
 
+void addCommand(Command command) {
+	if (commands.contains(command.name)) 
+		throw std::exception("Tried adding an existing command!");
+	commands.insert({ command.name, command });
+}
+
+void initCommands() {
+	addCommand({
+		"tp",
+		tpHandle,
+		"Teleport entities to another entity or position",
+		"/tp <entity> - teleport self to entity\n"
+		"/tp <entities> <entity> - teleport one or more entities to a singe entity\n"
+		"/tp <x> <y> <z> <w> - teleport self to a position\n"
+		"/tp <entities> <x> <y> <z> <w> - teleport one or more entities to a position",
+		{1, 2, 4, 5}
+		});
+
+	addCommand({
+		"kill",
+		killHandle,
+		"Kill one or more entities",
+		"/kill <entities> - kills one or more entities",
+		{1}
+		});
+
+	addCommand({
+		"fill",
+		fillHandle,
+		"Fill an area with a specific block",
+		"/fill <x1> <y1> <z1> <w1> <x2> <y2> <z2> <w2> <blockID> - fills the area with a block <blockID>",
+		{9}
+		});
+
+	addCommand({
+		"clone",
+		cloneHandle,
+		"Clone blocks from one area to another",
+		"/clone <x1> <y1> <z1> <w1> <x2> <y2> <z2> <w2> <x3> <y3> <z3> <w3> - clones blocks from a source area (1-2) to a destination area (3)",
+		{12}
+		});
+
+	addCommand({
+		"seed",
+		seedHandle,
+		"Display the current world seed",
+		"/seed - displays the seed",
+		{0}
+		});
+
+	addCommand({
+		"spawn",
+		spawnHandle,
+		"Spawn an entity at a specified position",
+		"/spawn <entityName> <x> <y> <z> <w> - spawn an entity at a specified position",
+		{5}
+		});
+
+	addCommand({
+		"difficulty",
+		difficultyHandle,
+		"Get or set the game difficulty",
+		"/difficulty - displays current difficulty\n"
+		"/difficulty {0|1|2} - sets current difficulty",
+		{0, 1}
+		});
+
+	addCommand({
+		"give",
+		giveHandle,
+		"Give items to yourself or entities",
+		"/give <itemName> [<count>] - give yourself an item. <count> is 1 by default\n"
+		"/give <entities> <itemName> [<count>] - give one or more entities an item. <count> is 1 by default",
+		{1, 2, 3}
+		});
+
+	addCommand({
+		"rotate",
+		rotateHandle,
+		"Rotate a block area in a specified plane",
+		"/rotate <plane> <x1> <y1> <z1> <w1> <x2> <y2> <z2> <w2> -safely rotates an area 90 or 180 degrees\n"
+		"plane is {XY|XZ|XW|YZ|YW|ZW}. {YX|ZX|WX|ZY|WY|WZ} are the same planes, but different direction.\n"
+		"Add \"180\" to a plane to rotate 180 degrees (XZ180 etc.)",
+		{9}
+		});
+
+	addCommand({
+		"alias",
+		aliasHandle,
+		"View, add, remove and view command aliases",
+		"/alias — list existing aliases\n"
+		"/alias <name> — show expansion for <name>\n"
+		"/alias -remove <name> — remove the alias <name>\n"
+		"/alias [-overwrite] <name> <expansion…> — add or overwrite an alias",
+		{0, 1, 2}
+		});
+
+	addCommand({
+		"help",
+		helpHandle,
+		"Show list of commands or usage of a command",
+		"/help - show list of existing commands and their descriptions\n"
+		"/help </command> - show usage of the </command>",
+		{0,1}
+		});
+
+	addCommand({
+		"clear",
+		clearHandle,
+		"Clear the chat messages",
+		"/clear - clear the chat messages",
+		{0}
+		});
+}
 
 // Catch commands client-side
 $hook(void, StateGame, addChatMessage, Player* player, const stl::string& message, uint32_t color)
@@ -280,12 +258,12 @@ $hook(void, StateGame, addChatMessage, Player* player, const stl::string& messag
 
 		tokenize(commandStream, command, modifiers, parameters);
 
-		if (!commandHandlers.contains(command)) {
+		if (!commands.contains(command)) {
 			return original(self, player, "Unknown command: " + command, errorColor);
 		}
 
 		try {
-			return original(self, player, commandHandlers.at(command)(modifiers, parameters, player, self->world.get()), color);
+			return original(self, player, commands.at(command).handle(modifiers, parameters, player, self->world.get()), color);
 		}
 		catch (CommandException& ex) {
 			return original(self, player, ex.what(), errorColor);
@@ -296,12 +274,16 @@ $hook(void, StateGame, addChatMessage, Player* player, const stl::string& messag
 	}
 }
 
+// init commands and aliases
+
 $hook(void,StateIntro, init, StateManager& s) {
 	original(self, s);
+	initCommands();
 	loadAliases();
 }
 
 $hook(void, WorldServer, WorldServer) {
 	original(self);
+	initCommands();
 	loadAliases();
 }

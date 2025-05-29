@@ -99,8 +99,10 @@
     <None Include="info.json5" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="CommandHandlers.h" />
-    <ClInclude Include="Exceptions\CommandExceptions.h" />
+    <ClInclude Include="Aliases.h" />
+    <ClInclude Include="Command.h" />
+    <ClInclude Include="Handlers.h" />
+    <ClInclude Include="CommandExceptions.h" />
     <ClInclude Include="utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

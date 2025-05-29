@@ -23,13 +23,19 @@
     <None Include="info.json5" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="CommandHandlers.h">
+    <ClInclude Include="Handlers.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Exceptions\CommandExceptions.h">
+    <ClInclude Include="CommandExceptions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Command.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Aliases.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
