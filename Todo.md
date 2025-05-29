@@ -3,15 +3,15 @@
 - ✅Create empty mod
 - ✅Add command catcher
 - Add /tp
-- Add /spawn
-- Add /give
+- ✅Add /spawn
+- ✅Add /give
 - ✅Add /fill
 - Add /time set, /time add, /time setspeed
 - ✅Add entity parameter options: by nickname for players,  @a for all entities (including players),@e for all non-player entities, @s for self, @p for all player entities
 - ✅Add /kill
-- Add /help for a list of commands
+- ✅Add /help for a list of commands
 - Add /settings list, /settings set
-- Add /clear to clear player inventory
+- ✅Add /clear to clear chat
 - ✅Add /clone to copy area of blocks from one are to other
 - ✅Add /rotate
 - Add /mirror
@@ -21,7 +21,7 @@
 - Add /say to say something in chat
 - ✅Add /seed to display world seed
 
-- Add error handling to all commands
+- ✅Add error handling to all commands
 
 - Server commands:
     - Make commands work on a server
@@ -37,12 +37,12 @@
 
 - Quality of life:
     - Add player name autofill by tab
-    - Add automatic parameters - ~ for players position, ^ for player's targeted block
+    - ✅Add automatic parameters - ~ for players position, ^ for player's targeted block
     - Add parameter evaluation (for example, ~+50 for player position+50)
 
 - High level stuff
     -Make up new system for target selectors
-    -Add alias system
+    -✅Add alias system
     -Add aliases for the minecraft-style target selectors
     -Add variables system
 
