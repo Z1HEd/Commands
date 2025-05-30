@@ -171,6 +171,60 @@ namespace utils {
 		return blocks.size();
 	}
 
+	inline static std::size_t mirrorArea(
+		const bool mirrorAxis[4],
+		const glm::ivec4& start,
+		const glm::ivec4& end,
+		World* world
+	) {
+		auto lexLE = [&](const glm::ivec4& a, const glm::ivec4& b) {
+			return std::tie(a.x, a.y, a.z, a.w) <= std::tie(b.x, b.y, b.z, b.w);
+			};
+
+		auto mirrorPt = [&](const glm::ivec4& p) {
+			return glm::ivec4{
+				mirrorAxis[0] ? start.x + end.x - p.x : p.x,
+				mirrorAxis[1] ? start.y + end.y - p.y : p.y,
+				mirrorAxis[2] ? start.z + end.z - p.z : p.z,
+				mirrorAxis[3] ? start.w + end.w - p.w : p.w
+			};
+			};
+
+		std::size_t count = 0;
+		for (int x = start.x; x <= end.x; ++x) {
+			for (int y = start.y; y <= end.y; ++y) {
+				for (int z = start.z; z <= end.z; ++z) {
+					for (int w = start.w; w <= end.w; ++w) {
+						glm::ivec4 p{ x,y,z,w };
+						glm::ivec4 q = mirrorPt(p);
+
+						if (!lexLE(p, q))
+							continue;
+
+						uint8_t idP = world->getBlock(p);
+						uint8_t idQ = world->getBlock(q);
+
+						world->setBlockUpdate(p, idQ);
+						world->setBlockUpdate(q, idP);
+
+						if (idP == BlockInfo::CHEST || idQ == BlockInfo::CHEST) {
+							auto* chestP = (EntityChest*)world->entities.getBlockEntity(p);
+							auto* chestQ = (EntityChest*)world->entities.getBlockEntity(q);
+
+							if (chestP) chestP->setPos(q);
+							if (chestQ) chestQ->setPos(p);
+						}
+
+						++count;
+					}
+				}
+			}
+		}
+
+		world->entities.relocateBlockEntities();
+		return count;
+	}
+
 	inline static void assertArgumentCount(const std::vector<std::string>& args,const std::set<int>& expected){
 		if (std::find(expected.begin(), expected.end(), args.size()) == expected.end())
 			throw ArgumentCountException(args.size(), expected);
@@ -218,17 +272,21 @@ namespace utils {
 		glm::ivec4 posA = parsePosition(parameters, firstIndex, player);
 		glm::ivec4 posB = parsePosition(parameters, firstIndex+4, player);
 
-		glm::ivec4 startPos, endPos;
-		for (int i = 0; i < 4; ++i) {
-			if (posA[i] <= posB[i]) {
-				startPos[i] = posA[i];
-				endPos[i] = posB[i];
-			}
-			else {
-				startPos[i] = posB[i];
-				endPos[i] = posA[i];
-			}
-		}
+
+		glm::ivec4 startPos = {
+			std::min(posA.x, posB.x),
+			std::min(posA.y, posB.y),
+			std::min(posA.z, posB.z),
+			std::min(posA.w, posB.w)
+		};
+
+		glm::ivec4 endPos = {
+			std::max(posA.x, posB.x),
+			std::max(posA.y, posB.y),
+			std::max(posA.z, posB.z),
+			std::max(posA.w, posB.w)
+		};
+
 		return { startPos, endPos };
 	}
 

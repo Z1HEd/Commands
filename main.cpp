@@ -70,53 +70,51 @@ void tokenize(
 	std::unordered_set<std::string>& modifiers,
 	std::vector<std::string>& parameters
 ) {
-	// Read command name
+	// Read command name (leading '/' already stripped)
 	commandStream >> command;
 	command = command.substr(1);
 
-
 	std::string rawToken;
 
-	// Read modifiers
-	while (commandStream >> rawToken) {
-		if (rawToken.empty() || rawToken.front() != '-')
-			break;
-
-		if (rawToken.find('"') != std::string::npos) {
-			throw CommandSyntaxException(rawToken, "no quotes are allowed in modifiers");
+	// Read --modifiers
+	while (true) {
+		if (!(commandStream >> rawToken)) {
+			return;
 		}
-		modifiers.insert(rawToken.substr(1));
+		if (rawToken.size() >= 3 && rawToken[0] == '-' && rawToken[1] == '-') {
+			if (rawToken.find('"') != std::string::npos) {
+				throw CommandSyntaxException(rawToken, "no quotes are allowed in modifiers");
+			}
+			modifiers.insert(rawToken.substr(2));
+		}
+		else {
+			break;
+		}
 	}
 
 	// Read parameters
 	do {
-		if (rawToken.empty())
-			return;
-
-		// If it starts with a quote, accumulate until the closing quote
+		// Handle quoted parameters
 		if (rawToken.front() == '"') {
-			while (rawToken.back() != '"') {
+			while (rawToken.size() == 1 || rawToken.back() != '"') {
 				std::string next;
 				if (!(commandStream >> next)) {
 					throw CommandSyntaxException(rawToken, "unterminated quote");
 				}
 				rawToken += " " + next;
 			}
+			if (rawToken.size() < 2 || rawToken.front() != '"' || rawToken.back() != '"') {
+				throw CommandSyntaxException(rawToken, "invalid quote position");
+			}
+			parameters.push_back(rawToken.substr(1, rawToken.size() - 2));
 		}
-
-		// Single search for invalid interior or unbalanced quotes
-		size_t pos = rawToken.find('"', 1);
-		if (pos != std::string::npos && (rawToken.front() != '"' || pos != rawToken.size() - 1)) {
-			throw CommandSyntaxException(rawToken, "invalid quote position");
+		else {
+			// Disallow modifiers after parameters
+			if (rawToken.size() >= 3 && rawToken[0] == '-' && rawToken[1] == '-') {
+				throw CommandSyntaxException(rawToken, "modifier after parameter");
+			}
+			parameters.push_back(rawToken);
 		}
-
-		// Disallow modifiers after parameters
-		if (rawToken.front() == '-') {
-			throw CommandSyntaxException(rawToken, "modifier after parameter");
-		}
-
-		parameters.push_back(rawToken);
-
 	} while (commandStream >> rawToken);
 }
 
@@ -126,7 +124,49 @@ void addCommand(Command command) {
 	commands.insert({ command.name, command });
 }
 
+// Catch commands client-side
+$hook(void, StateGame, addChatMessage, Player* player, const stl::string& message, uint32_t color)
+{
+	if (self->world->getType()!= World::TYPE_SINGLEPLAYER) // If not in singleplayer, let server handle it
+		return original(self, player,message,color);
+
+	try {
+
+		if (message[0] != '/')
+			return original(self, player, message, color); // If not a command, do nothing
+
+		std::string messageExpanded = message;
+		if (message.find("/alias ", 0) != 0) // Dont apply aliases to /alias command
+			applyAliases(messageExpanded);
+
+		std::stringstream commandStream(messageExpanded);
+
+		std::string command;
+		std::unordered_set<std::string> modifiers{};
+		std::vector<std::string> parameters{};
+
+		try {
+			tokenize(commandStream, command, modifiers, parameters);
+
+			if (!commands.contains(command)) {
+				return original(self, player, "Unknown command: " + command, errorColor);
+			}
+
+			return original(self, player, commands.at(command).handle(modifiers, parameters, player, self->world.get()), color);
+		}
+		catch (CommandException& ex) {
+			return original(self, player, ex.what(), errorColor);
+		}
+	}
+	catch (std::exception& e) {
+		return original(self, player, std::format("Critical error when executing command: {}",e.what()), criticalErrorColor);
+	}
+}
+
+// init commands and aliases
+
 void initCommands() {
+
 	addCommand({
 		"tp",
 		tpHandle,
@@ -199,10 +239,20 @@ void initCommands() {
 	addCommand({
 		"rotate",
 		rotateHandle,
-		"Rotate a block area in a specified plane",
-		"/rotate <plane> <x1> <y1> <z1> <w1> <x2> <y2> <z2> <w2> -safely rotates an area 90 or 180 degrees\n"
+		"Rotate an area of blocks in a specified plane",
+		"/rotate [--unsafe] <plane> <x1> <y1> <z1> <w1> <x2> <y2> <z2> <w2> - rotates an area 90 or 180 degrees\n"
 		"plane is {XY|XZ|XW|YZ|YW|ZW}. {YX|ZX|WX|ZY|WY|WZ} are the same planes, but different direction.\n"
 		"Add \"180\" to a plane to rotate 180 degrees (XZ180 etc.)",
+		{9},
+		{"unsafe"}
+		});
+
+	addCommand({
+		"mirror",
+		mirrorHandle,
+		"Mirror an area of blocks across specified axes.",
+		"/mirror <axes> <x1> <y1> <z1> <w1> <x2> <y2> <z2> <w2> - mirrors the area\n"
+		"    (axes: any combination of X,Y,Z,W; e.g. XYZ mirrors X,Y,Z but not W)",
 		{9}
 		});
 
@@ -212,9 +262,10 @@ void initCommands() {
 		"View, add, remove and view command aliases",
 		"/alias — list existing aliases\n"
 		"/alias <name> — show expansion for <name>\n"
-		"/alias -remove <name> — remove the alias <name>\n"
-		"/alias [-overwrite] <name> <expansion…> — add or overwrite an alias",
-		{0, 1, 2}
+		"/alias --remove <name> — remove the alias <name>\n"
+		"/alias [--overwrite] <name> <expansion…> — add or overwrite an alias",
+		{0, 1, 2},
+		{"remove", "overwrite"}
 		});
 
 	addCommand({
@@ -235,46 +286,6 @@ void initCommands() {
 		});
 }
 
-// Catch commands client-side
-$hook(void, StateGame, addChatMessage, Player* player, const stl::string& message, uint32_t color)
-{
-	if (self->world->getType()!= World::TYPE_SINGLEPLAYER) // If not in singleplayer, let server handle it
-		return original(self, player,message,color);
-
-	try {
-
-		if (message[0] != '/')
-			return original(self, player, message, color); // If not a command, do nothing
-
-		std::string messageExpanded = message;
-		if (message.find("/alias ", 0) != 0) // Dont apply aliases to /alias command
-			applyAliases(messageExpanded);
-
-		std::stringstream commandStream(messageExpanded);
-
-		std::string command;
-		std::unordered_set<std::string> modifiers{};
-		std::vector<std::string> parameters{};
-
-		tokenize(commandStream, command, modifiers, parameters);
-
-		if (!commands.contains(command)) {
-			return original(self, player, "Unknown command: " + command, errorColor);
-		}
-
-		try {
-			return original(self, player, commands.at(command).handle(modifiers, parameters, player, self->world.get()), color);
-		}
-		catch (CommandException& ex) {
-			return original(self, player, ex.what(), errorColor);
-		}
-	}
-	catch (std::exception e) {
-		return original(self, player, std::format("Critical error when executing command: {}",e.what()), criticalErrorColor);
-	}
-}
-
-// init commands and aliases
 
 $hook(void,StateIntro, init, StateManager& s) {
 	original(self, s);

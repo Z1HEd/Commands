@@ -54,6 +54,12 @@ namespace commandExceptions {
         {
         }
     };
+
+    class UnknownModifierException : public CommandException {
+    public:
+        UnknownModifierException(std::string modifier) :
+            CommandException(std::format("Unknown modifier: {}", modifier)) {}
+    };
     
     class AliasException : public CommandException {
     public:

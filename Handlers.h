@@ -67,7 +67,6 @@ std::string killHandle(
 	Player* player,
 	World* world
 ) {
-	assertArgumentCount(parameters, { 1 });
 
 	const std::string& entityString = parameters[0];
 	auto entities = parseEntityList(entityString, player, world);
@@ -91,7 +90,6 @@ std::string fillHandle(
 	World* world
 ) {
 	constexpr int maxFillSize = 32 * 32 * 32 * 32;
-	assertArgumentCount(parameters, { 9 });
 
 	auto [startPosition, endPosition] = parseArea(parameters, 0, player);
 	int blockType = parseInt(parameters[8]);
@@ -139,7 +137,6 @@ std::string cloneHandle(
 	World* world
 ) {
 	constexpr int maxAreaSize = 32 * 32 * 32 * 32;
-	assertArgumentCount(parameters, { 12 });
 
 	auto [fromStart, fromEnd] = parseArea(parameters, 0, player);
 	glm::ivec4 toStart = parsePosition(parameters, 8, player);
@@ -203,7 +200,6 @@ std::string seedHandle(
 	Player* player,
 	World* world
 ) {
-	assertArgumentCount(parameters, { 0 });
 
 	if (world->getType() == World::TYPE_SINGLEPLAYER) {
 		auto* sp = static_cast<WorldSingleplayer*>(world);
@@ -220,7 +216,6 @@ std::string spawnHandle(
 	Player* player,
 	World* world
 ) {
-	assertArgumentCount(parameters, { 5 });
 
 	const std::string& entityName = parameters[0];
 	glm::vec4 position = parsePosition(parameters, 1, player);
@@ -236,7 +231,6 @@ std::string difficultyHandle(
 	Player* player,
 	World* world
 ) {
-	assertArgumentCount(parameters, { 0, 1 });
 
 	if (parameters.empty()) {
 		int current = world->getType() == World::TYPE_SINGLEPLAYER ?
@@ -268,8 +262,6 @@ std::string giveHandle(
 	Player* player,
 	World* world
 ) {
-	assertArgumentCount(parameters, { 1,2,3 });
-
 	// /give <item>
 	if (parameters.size() == 1) {
 		std::string itemName = parseText(parameters[0]);
@@ -325,8 +317,6 @@ std::string rotateHandle(
 	Player* player,
 	World* world
 ) {
-	assertArgumentCount(parameters, { 9 });
-
 	const std::string& modeRaw = parseText(parameters[0]);
 
 	// strip and uppercase base mode
@@ -350,7 +340,7 @@ std::string rotateHandle(
 	auto [start, end] = parseArea(parameters, 0, player);
 
 	// if safe mode, enforce square area in that plane
-	if (!modifiers.count("unsafe")) {
+	if (!modifiers.contains("unsafe")) {
 		auto axisIndex = [&](char C) {
 			return C == 'X' ? 0 : C == 'Y' ? 1 : C == 'Z' ? 2 : 3;
 			};
@@ -368,6 +358,40 @@ std::string rotateHandle(
 
 	auto count = rotateArea(modeRaw, start, end, world);
 	return std::format("Rotated {} blocks ({})", count, modeRaw);
+}
+
+std::string mirrorHandle(
+	const std::unordered_set<std::string>& modifiers,
+	const std::vector<std::string>& parameters,
+	Player* player,
+	World* world
+) {
+
+	std::string axesRaw = parseText(parameters[0]);
+	for (auto& c : axesRaw) c = std::toupper(c);
+	if (axesRaw.empty() || axesRaw.size() > 4) {
+		throw ConstraintException("Mirror axes string must be 1–4 characters long.");
+	}
+
+	bool mirrorAxis[4] = { false,false,false,false };
+	for (char c : axesRaw) {
+		switch (c) {
+		case 'X': mirrorAxis[0] = true; break;
+		case 'Y': mirrorAxis[1] = true; break;
+		case 'Z': mirrorAxis[2] = true; break;
+		case 'W': mirrorAxis[3] = true; break;
+		default:
+			throw ConstraintException(std::format(
+				"Invalid mirror axis '{}'. Valid axes are X, Y, Z, W.", c
+			));
+		}
+	}
+
+	auto [start, end] = parseArea(parameters, 1, player);
+
+	std::size_t count = mirrorArea(mirrorAxis, start, end, world);
+	return std::format("Mirrored {} blocks on axes {}",
+		count, axesRaw);
 }
 
 std::string aliasHandle(

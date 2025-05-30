@@ -18,12 +18,20 @@ public:
 	std::string description;
 	std::string usage;
 	std::set<int> argumentCounts;
+	std::set<std::string> knownModifiers;
 
 	std::string handle(const std::unordered_set<std::string>& modifiers,
 		const std::vector<std::string>& arguments,
 		Player* player, World* world) {
+
+		for (auto& modifier : modifiers) {
+			if (!knownModifiers.contains(modifier))
+				throw UnknownModifierException(modifier);
+		}
+
 		if (!argumentCounts.contains(arguments.size()))
 			throw ArgumentCountException(arguments.size(), argumentCounts);
+
 		return handler(modifiers, arguments, player, world);
 	}
 };
