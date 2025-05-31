@@ -17,7 +17,7 @@ namespace commandExceptions {
     class CommandSyntaxException : public CommandException {
     public:
         inline CommandSyntaxException(const std::string& input, const std::string& rule )
-            : CommandException(std::format("Invalid syntax: {} ({})",input,rule)) {
+            : CommandException(std::format("Invalid syntax at: '{}' ({})",input,rule)) {
         }
     };
 

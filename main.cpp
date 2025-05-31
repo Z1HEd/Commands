@@ -2,9 +2,13 @@
 #include "Handlers.h"
 #include "Command.h"
 #include "Aliases.h"
+#include "Parsing.h"
+#include "Tokenizer.h"
 
 using namespace fdm;
 using namespace aliases;
+using namespace parsing;
+using namespace tokenizer;
 
 // Initialize the DLLMain
 initDLL
@@ -62,60 +66,6 @@ $hook(void,StateGame, keyInput,StateManager& s, int key, int scancode, int actio
 	}
 
 	return original(self, s, key, scancode, action, mods);
-}
-
-void tokenize(
-	std::stringstream& commandStream,
-	std::string& command,
-	std::unordered_set<std::string>& modifiers,
-	std::vector<std::string>& parameters
-) {
-	// Read command name (leading '/' already stripped)
-	commandStream >> command;
-	command = command.substr(1);
-
-	std::string rawToken;
-
-	// Read --modifiers
-	while (true) {
-		if (!(commandStream >> rawToken)) {
-			return;
-		}
-		if (rawToken.size() >= 3 && rawToken[0] == '-' && rawToken[1] == '-') {
-			if (rawToken.find('"') != std::string::npos) {
-				throw CommandSyntaxException(rawToken, "no quotes are allowed in modifiers");
-			}
-			modifiers.insert(rawToken.substr(2));
-		}
-		else {
-			break;
-		}
-	}
-
-	// Read parameters
-	do {
-		// Handle quoted parameters
-		if (rawToken.front() == '"') {
-			while (rawToken.size() == 1 || rawToken.back() != '"') {
-				std::string next;
-				if (!(commandStream >> next)) {
-					throw CommandSyntaxException(rawToken, "unterminated quote");
-				}
-				rawToken += " " + next;
-			}
-			if (rawToken.size() < 2 || rawToken.front() != '"' || rawToken.back() != '"') {
-				throw CommandSyntaxException(rawToken, "invalid quote position");
-			}
-			parameters.push_back(rawToken.substr(1, rawToken.size() - 2));
-		}
-		else {
-			// Disallow modifiers after parameters
-			if (rawToken.size() >= 3 && rawToken[0] == '-' && rawToken[1] == '-') {
-				throw CommandSyntaxException(rawToken, "modifier after parameter");
-			}
-			parameters.push_back(rawToken);
-		}
-	} while (commandStream >> rawToken);
 }
 
 void addCommand(Command command) {

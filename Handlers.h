@@ -3,10 +3,12 @@
 #include "utils.h"
 #include "Aliases.h"
 #include "Command.h"
+#include "Parsing.h"
 
 using namespace fdm;
 using namespace utils;
 using namespace aliases;
+using namespace parsing;
 using namespace commandExceptions;
 
 std::string tpHandle(

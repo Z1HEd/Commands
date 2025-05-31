@@ -83,6 +83,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalIncludeDirectories>./4dm.h;./4dm.h/networking/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -94,6 +95,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="tinyexpr-master\tinyexpr.c" />
   </ItemGroup>
   <ItemGroup>
     <None Include="info.json5" />
@@ -101,8 +103,12 @@
   <ItemGroup>
     <ClInclude Include="Aliases.h" />
     <ClInclude Include="Command.h" />
+    <ClInclude Include="exprtk.hpp" />
     <ClInclude Include="Handlers.h" />
     <ClInclude Include="CommandExceptions.h" />
+    <ClInclude Include="Parsing.h" />
+    <ClInclude Include="tinyexpr-master\tinyexpr.h" />
+    <ClInclude Include="Tokenizer.h" />
     <ClInclude Include="utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
