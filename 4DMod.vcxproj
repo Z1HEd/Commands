@@ -103,7 +103,6 @@
   <ItemGroup>
     <ClInclude Include="Aliases.h" />
     <ClInclude Include="Command.h" />
-    <ClInclude Include="exprtk.hpp" />
     <ClInclude Include="Handlers.h" />
     <ClInclude Include="CommandExceptions.h" />
     <ClInclude Include="Parsing.h" />

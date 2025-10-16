@@ -14,7 +14,7 @@
 - ✅Add /clear to clear chat
 - ✅Add /clone to copy area of blocks from one are to other
 - ✅Add /rotate
-- Add /mirror
+- ✅Add /mirror
 - Add /damage to damage entities
 - ✅Add /difficulty
 - Add /save to save a world

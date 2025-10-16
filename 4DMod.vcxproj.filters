@@ -47,9 +47,6 @@
     <ClInclude Include="Tokenizer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="exprtk.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="tinyexpr-master\tinyexpr.h">
       <Filter>Header Files</Filter>
     </ClInclude>
